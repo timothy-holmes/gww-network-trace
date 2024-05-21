@@ -1,0 +1,24 @@
+[tool.pytest.ini_options]
+addopts = "-v"
+
+[tool.coverage.report]
+omit = ["gwwnetworktrace/qgis_plugin_tools/*"]
+
+[tool.ruff]
+target-version = "py38"
+extend = "ruff_defaults.toml"
+
+unfixable = [
+    "F401", # unused imports
+    "F841", # unused variables
+]
+
+exclude = ["gwwnetworktrace/qgis_plugin_tools"]
+
+[[tool.mypy.overrides]]
+module = "gwwnetworktrace.qgis_plugin_tools.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["qgis.*", "osgeo.*"]
+ignore_missing_imports = true

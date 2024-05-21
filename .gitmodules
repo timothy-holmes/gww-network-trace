@@ -1,0 +1,6 @@
+[submodule "gwwnetworktrace/qgis_plugin_tools"]
+	path = gwwnetworktrace/qgis_plugin_tools
+	url = https://github.com/GispoCoding/qgis_plugin_tools
+[submodule "gwwnetworktrace/gwwnetworktrace_processing/gww-gis-tools"]
+	path = gwwnetworktrace/gwwnetworktrace_processing/gww-gis-tools
+	url = https://github.com/timothy-holmes/gww-gis-tools
