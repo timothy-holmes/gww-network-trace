@@ -1,16 +1,15 @@
 from qgis.core import QgsProcessingProvider
 
-from gwwnetworktrace.gwwnetworktrace_processing.processing_algorithm import (
-    ProcessingAlgorithm,  # type: ignore[import-not-found]
-)
+from gwwnetworktrace.gww_nt_processing.graph import UpstreamGraphAlgorithm
+from gwwnetworktrace.gww_nt_processing.trace import UpstreamTraceAlgorithm
 
 
 class Provider(QgsProcessingProvider):
     def __init__(self) -> None:
         super().__init__()
 
-        self._id = "myprovider"
-        self._name = "My provider"
+        self._id = "gwwnetworktrace"
+        self._name = "GWW Network Trace"
 
     def id(self) -> str:
         """The ID of your plugin, used to identify the provider.
@@ -42,5 +41,9 @@ class Provider(QgsProcessingProvider):
         """
         Adds individual processing algorithms to the provider.
         """
-        alg = ProcessingAlgorithm()
-        self.addAlgorithm(alg)
+        upstream_graph = UpstreamGraphAlgorithm()
+        self.addAlgorithm(upstream_graph)
+
+        upstream_trace = UpstreamTraceAlgorithm()
+        self.addAlgorithm(upstream_trace)
+

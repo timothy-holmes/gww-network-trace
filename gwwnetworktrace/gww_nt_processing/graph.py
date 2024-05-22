@@ -12,13 +12,17 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterFileDestination,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from gwwnetworktrace.gwwnetworktrace_processing.gww_gis_tools.trace_gis.trace_sewer import Graph, Trace
+from gwwnetworktrace.gww_nt_processing.gww_gis_tools.trace_gis.trace_sewer import (
+    Graph,
+    Trace,
+)
 
 
-class ProcessingAlgorithm(QgsProcessingAlgorithm):
+class UpstreamGraphAlgorithm(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -37,13 +41,14 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
     # calling from the QGIS console.
 
     INPUT = "INPUT"
+    UPDATE = "UPDATE_GRAPH"
     OUTPUT = "OUTPUT"
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._name = "myprocessingalgorithm"
-        self._display_name = "My Processing Algorithm"
+        self._name = "upstream_graph"
+        self._display_name = "Generate upstream graph"
         self._group_id = ""
         self._group = ""
         self._short_help_string = ""
@@ -55,7 +60,7 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):  # noqa N802
-        return ProcessingAlgorithm()
+        return self.__class__()
 
     def name(self) -> str:
         """
@@ -114,11 +119,18 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
-
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
-        self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer")))
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.INPUT,
+                self.tr("Input layer"),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFileDestination(
+                self.OUTPUT, self.tr("Bar plot"), self.tr("HTML files (*.html)")
+            )
+        )
 
     def processAlgorithm(  # noqa N802
         self,
@@ -130,13 +142,9 @@ class ProcessingAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
 
-        # Initialize feedback if it is None
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
         source = self.parameterAsSource(parameters, self.INPUT, context)
 
         (sink, dest_id) = self.parameterAsSink(

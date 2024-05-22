@@ -4,3 +4,6 @@
 [submodule "gwwnetworktrace/gwwnetworktrace_processing/gww-gis-tools"]
 	path = gwwnetworktrace/gwwnetworktrace_processing/gww-gis-tools
 	url = https://github.com/timothy-holmes/gww-gis-tools
+[submodule "gwwnetworktrace/gww-gis-tools"]
+	path = gwwnetworktrace/gww-gis-tools
+	url = https://github.com/timothy-holmes/gww-gis-tools
