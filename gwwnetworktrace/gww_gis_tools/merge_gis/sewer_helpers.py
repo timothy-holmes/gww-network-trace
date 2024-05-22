@@ -25,8 +25,8 @@ class AssetType:
 
 class W:
     SHORT = "W"
-    COMPANY = ("WW",)
-    FULL = ("Western Region",)
+    COMPANY = "WW"
+    FULL = "Western Region"
     SERVER = "wro-gisapp"
 
 
@@ -106,21 +106,21 @@ class Config:
         },
     }
 
-    cloud_queries = {
-        AssetType.PIPES: {
-            W: "SELECT * FROM SP_SEWGPIPE",
-            C: "SELECT * FROM SP_SEWVPIPE UNION SELECT * FROM SP_SEWRPIPE",
-        },
-        AssetType.BRANCHES: {
-            W: "SELECT * FROM SP_SEWSERV",
-            C: "SELECT * FROM SP_SEWSERV",
-        },
-        AssetType.NODES: {W: "SELECT * FROM SP_SEWNODE", C: "SELECT * FROM SP_SEWNODE"},
-        AssetType.PARCELS: {
-            W: "SELECT * FROM SP_PROPERTY",
-            C: "SELECT * FROM SP_PROPERTY",
-        },
-    }
+    # cloud_queries = {
+    #     AssetType.PIPES: {
+    #         W: "SELECT * FROM SP_SEWGPIPE",
+    #         C: "SELECT * FROM SP_SEWVPIPE UNION SELECT * FROM SP_SEWRPIPE",
+    #     },
+    #     AssetType.BRANCHES: {
+    #         W: "SELECT * FROM SP_SEWSERV",
+    #         C: "SELECT * FROM SP_SEWSERV",
+    #     },
+    #     AssetType.NODES: {W: "SELECT * FROM SP_SEWNODE", C: "SELECT * FROM SP_SEWNODE"},
+    #     AssetType.PARCELS: {
+    #         W: "SELECT * FROM SP_PROPERTY",
+    #         C: "SELECT * FROM SP_PROPERTY",
+    #     },
+    # }
 
     output_template = r"C:\Users\holmest1\Greater Western Water\IP - Spatial - Documents\Input\2. GWW GIS Exports\Existing Assets\Merged Regions\Sewer\GWW_{id}.tab"
 
@@ -144,30 +144,34 @@ class Config:
         "S_INVELEV": "START_INVELEV",
         "GEOMLENGTH": "GEOM_LENGTH",
         "NODECOVELE": "NODE_COVELEV",
+        "PGRADIENT": "PIPE_GRADIENT",
     }
 
-    @staticmethod
-    def possible_outpaths(config):
-        possible_ids = list(config.files.keys()) + ["parcels_unserved", "parcels"]
+    def __init__(self):
+        self._files = None
 
+    @property
+    def files(self):
+        return self._files or self.network_files
+
+    @files.setter
+    def files(self, data_source):
+        self._files = data_source
+
+    def possible_outpaths(self):
         outpaths = {
-            id: os.path.getmtime(config.output_template.format(id=id))
-            for id in possible_ids
-            if os.path.exists(config.output_template.format(id=id))
+            id: os.path.getmtime(self.output_template.format(id=id))
+            for id in self.files
+            if os.path.exists(self.output_template.format(id=id))
         }
 
         return outpaths
 
+    def get_filepaths(self, asset_type: str, region: str):
+        return self.files.get(asset_type, {}).get(region, [])
+
 
 class DataHelpers:
-    @staticmethod
-    def get_filepaths(config: Config, asset_type: str, region: str):
-        return [
-            f
-            for f in config.files[asset_type]
-            if (region.FULL in f) or (region.SERVER in f)
-        ]
-
     @staticmethod
     def get_table_name(filepath, asset_type, region):
         if (asset_type, region) == (AssetType.PIPES, W):
@@ -231,11 +235,18 @@ class FieldsHelpers:
         return list(sorted(set(x.columns).difference(y.columns)))
 
     @staticmethod
-    def dia_to_int(x):
+    def dia_to_height_width(x):
+        hw = str(x).split("x")
+
+        if len(hw) == 1:
+            hw.append(hw[0])
+
         try:
-            return int(str(x).split("x")[0])
+            hw = tuple(map(int, hw))
         except ValueError:  # commonly 'UNKN'
-            return 0
+            hw = (0, 0)
+
+        return hw
 
 
 class Corrections:

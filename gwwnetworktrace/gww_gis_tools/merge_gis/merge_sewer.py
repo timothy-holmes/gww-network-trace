@@ -27,16 +27,19 @@ from gww_gis_tools.merge_gis.sewer_helpers import (
 
 
 def merge(config, output: dict):
-    for a in config.files.keys():
+    # TODO: this loop is convoluted, but it works
+    for a in config.files.keys():  # a == AssetType
+        # get file paths
         ww_files = {
             DataHelpers.get_table_name(fp, a, W): fp
-            for fp in DataHelpers.get_filepaths(a, W)
+            for fp in config.get_filepaths(a, W)
         }
-        cww_files = DataHelpers.get_filepaths(a, C)
+        cww_files = config.get_filepaths(a, C)
 
         if (not len(ww_files)) or (not len(cww_files)):
             print("Skipping", a)
 
+        # load files into single gdf for each company
         ww_gdfs = [
             DataHelpers.read_file(fp).assign(SRC_TABLE=src)
             for src, fp in ww_files.items()
@@ -44,20 +47,23 @@ def merge(config, output: dict):
         ww_gdf = gpd.GeoDataFrame(
             pd.concat(ww_gdfs, ignore_index=True), crs=ww_gdfs[0].crs
         )
-
         cww_gdf = DataHelpers.read_file(cww_files[0])
 
-        if "ASSET_OWNER" in cww_gdf.columns:
-            cww_owner_mask = cww_gdf[~(cww_gdf["ASSET_OWNER"] == C.COMPANY)]
-            cww_gdf.drop(cww_owner_mask.index, inplace=True)
+        #  drop WW abandonded assets
+        abandoned_where = ww_gdf["OP_STATUS"] == 3
+        ww_gdf.drop(abandoned_where, inplace=True)
 
-        ww_gdf["ASSET_OWNER"] = W.COMPANY
+        # set ASSET_OWNER
+        if "ASSET_OWNER" in cww_gdf.columns:
+            cww_owner_mask = ~(cww_gdf["ASSET_OWNER"] == C.COMPANY)
+            cww_gdf.loc[cww_owner_mask, "ASSET_OWNER"] = f"NOT_{C.COMPANY}"
+            ww_gdf["ASSET_OWNER"] = W.COMPANY
 
         for c in config.asset_uids:
             if c in cww_gdf.columns:
-                cww_gdf[c] = cww_gdf[c].astype(int).astype(str) + "_" + C.COMPANY
+                cww_gdf[c] = cww_gdf[c].astype(int).astype(str) + f"_{C.COMPANY}"
             if c in ww_gdf.columns:
-                ww_gdf[c] = ww_gdf[c].astype(str) + "_" + W.COMPANY
+                ww_gdf[c] = ww_gdf[c].astype(str) + f"_{W.COMPANY}"
 
         ww_gdf.rename(
             columns={
@@ -67,11 +73,15 @@ def merge(config, output: dict):
         )
 
         if "PIPE_DIA" in cww_gdf.columns:
-            cww_gdf["PIPE_DIA"] = (
+            cww_gdf["PIPE_HEIGHT"], cww_gdf["PIPE_WIDTH"] = (
                 cww_gdf["PIPE_DIA"].apply(FieldsHelpers.dia_to_int).astype(int)
             )
+            cww_gdf.drop(columns="PIPE_DIA", inplace=True)
 
         fields = FieldsHelpers.intersect(cww_gdf, ww_gdf)
+        print(f"Intersecting Fields: {fields}")
+        print(FieldsHelpers.diff(cww_gdf, ww_gdf))
+        print(FieldsHelpers.diff(ww_gdf, cww_gdf))
 
         # concat C and W
         crs = cww_gdf.crs
@@ -94,8 +104,10 @@ def make_corrections(config, output: dict):
         pipe_corrections = [{"pipe_id": "104368_CWW", "action": Corrections.swap_nodes}]
 
         for c in pipe_corrections:
-            row = pipes_gdf.loc[pipes_gdf["PIPE_ID"] == c["pipe_id"]]
-            pipes_gdf.loc[pipes_gdf["PIPE_ID"] == c["pipe_id"]] = c["action"](row)
+            index_where = pipes_gdf["PIPE_ID"] == c["pipe_id"]
+            pipes_gdf.loc[index_where, :] = pipes_gdf.loc[index_where, :].apply(
+                c["action"], axis=1
+            )
 
         # temporary fix for START_NODE/END_NODE = 0_CWW, 0_WW
         pipes_gdf.drop(
@@ -144,18 +156,6 @@ def save_output(config: Config, output: dict):
     for id, gdf in output.items():
         save_file(gdf=gdf, filename=config.output_template.format(id=id))
     print(f"{id} saved")
-
-    return outpaths
-
-
-def possible_outpaths(config):
-    possible_ids = list(config.files.keys()) + ["parcels_unserved", "parcels"]
-
-    outpaths = {
-        id: os.path.getmtime(config.output_template.format(id=id))
-        for id in possible_ids
-        if os.path.exists(config.output_template.format(id=id))
-    }
 
     return outpaths
 

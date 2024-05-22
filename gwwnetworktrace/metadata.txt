@@ -2,7 +2,7 @@
 name=GWW Network Trace
 description=Plugin for tracing GWW network
 about=
-version=0.1.0
+version=
 qgisMinimumVersion=3.16
 author=
 email=
