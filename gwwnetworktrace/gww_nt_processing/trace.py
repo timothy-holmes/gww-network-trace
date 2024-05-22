@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
-from qgis import processing  # noqa: TCH002
 from qgis.core import (
     QgsFeatureRequest,
-    QgsFeatureSink,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
@@ -16,7 +13,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
-from gwwnetworktrace.gww_nt_processing.gww_gis_tools.trace_gis.trace_sewer import (
+from gwwnetworktrace.gww_gis_tools.trace_gis.trace_sewer import (
     DIRECTION,
     Graph,
     Trace,

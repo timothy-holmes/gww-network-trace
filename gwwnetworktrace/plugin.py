@@ -8,7 +8,7 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QWidget
 from qgis.utils import iface
 
-from gwwnetworktrace.gwwnetworktrace_processing.provider import Provider
+from gwwnetworktrace.gww_nt_processing.provider import Provider
 from gwwnetworktrace.qgis_plugin_tools.tools.custom_logging import (
     setup_logger,
     teardown_logger,
@@ -112,9 +112,16 @@ class Plugin:
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         self.add_action(
-            "",
-            text=Plugin.name,
-            callback=self.run,
+            icon_path="",
+            text="Run upstream trace on selected feature",
+            callback=self.run_upstream,
+            parent=iface.mainWindow(),
+            add_to_toolbar=False,
+        )
+        self.add_action(
+            icon_path="",
+            text="Generate upstream graph",
+            callback=self.run_downstream,
             parent=iface.mainWindow(),
             add_to_toolbar=False,
         )
@@ -131,6 +138,10 @@ class Plugin:
         teardown_logger(Plugin.name)
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
-    def run(self) -> None:
+    def run_upstream(self) -> None:
         """Run method that performs all the real work"""
-        print("Hello QGIS plugin")  # noqa: T201
+        print("Run upstream trace")  # noqa: T201
+
+    def run_downstream(self) -> None:
+        """Run method that performs all the real work"""
+        print("Run downstream trace")  # noqa: T201
