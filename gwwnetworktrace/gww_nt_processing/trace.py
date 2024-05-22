@@ -152,7 +152,10 @@ class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
         feature_request = (
             QgsFeatureRequest()
             .setFlags(QgsFeatureRequest.NoGeometry)
-            .setSubsetOfAttributes(["START_NODE", "END_NODE"])
+            .setSubsetOfAttributes(
+                attrNames=["START_NODE", "END_NODE"],
+                fields=layer.fields()
+            )
         )
         features = feature_source.getFeatures(feature_request)
         feature_data = [
@@ -170,7 +173,7 @@ class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
             msg = "Select one feature"
             raise NotImplementedError(msg)
 
-        first_node = next(layer.selectedFeatures()).id()
+        first_node = next(iter(layer.selectedFeatures())).id()
         t_result = Trace(source_graph).trace(first_node=first_node)
         layer.selectByIds(t_result.pipes)
 
