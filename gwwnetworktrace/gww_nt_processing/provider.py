@@ -45,4 +45,3 @@ class Provider(QgsProcessingProvider):
 
         upstream_trace = UpstreamTraceAlgorithm()
         self.addAlgorithm(upstream_trace)
-

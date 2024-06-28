@@ -13,3 +13,11 @@ fixtures:
   This should be used with tests that add stuff to QgsProject.
 
 """
+
+import pytest
+from pytest_qgis import qgis_load_layer, qgis_project
+
+
+@pytest.fixture(scope="session")
+def project_with_pipes(qgis_app: QgsApplication, qgis_iface: QgsInterface):
+    return None

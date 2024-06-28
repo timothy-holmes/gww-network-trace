@@ -5,6 +5,11 @@
         }
     ],
     "settings": {
+        "workbench.colorCustomizations": {
+            "activityBar.background": "#d7ffd7",
+            "titleBar.activeBackground": "#d7ffd7",
+            "statusBar.background": "#d7ffd7"
+        },
         "editor.formatOnSave": true,
         "[python]": {
             "editor.defaultFormatter": "charliermarsh.ruff",
@@ -22,7 +27,6 @@
     "extensions": {
         "recommendations": [
             "ms-python.python",
-            "ms-python.flake8",
             "ms-python.mypy-type-checker",
             "charliermarsh.ruff",
             "editorconfig.editorconfig"

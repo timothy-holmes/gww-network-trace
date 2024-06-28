@@ -1,8 +1,15 @@
+from __future__ import annotations
+
+import inspect
+import json
 from collections import defaultdict
 from enum import Enum
 from typing import Callable, Union
-import inspect
-import json
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 
 class DIRECTION(Enum):
@@ -33,22 +40,25 @@ class Graph:
         """Specify direction on initialisation"""
         self.direction = direction
         assert type(self.direction) is DIRECTION
-        self.nodes = defaultdict(list)
-        self.pipes = defaultdict(list)
+        self.nodes: defaultdict[list] = defaultdict(list)
+        self.pipes: defaultdict[list] = defaultdict(list)
 
-    def from_gdf(self, links):
+    def __repr__(self) -> str:
+        return f"Graph({self.direction}, {len(self.nodes)=})"
+
+    def from_gdf(self, links) -> Self:
         """Takes a (Geo)DataFrame and add each row as an edge. Returns graph object."""
         for f in links.itertuples(index=False):
             self.add_edge(f.START_NODE, f.END_NODE, f.PIPE_ID)
         return self
 
-    def from_dicts(self, links: list[dict]):
+    def from_dicts(self, links: list[dict]) -> Self:
         """Takes a list of dictionaries and add each row as an edge. Returns graph object."""
         for f in links:
             self.add_edge(f["START_NODE"], f["END_NODE"], f["PIPE_ID"])
         return self
 
-    def add_edge(self, start_node, end_node, pipe_id):
+    def add_edge(self, start_node, end_node, pipe_id) -> Self:
         """Add field values for a single feature as an edge. Returns graph object."""
         if self.direction == DIRECTION.U:
             self.nodes[end_node].append(start_node)
@@ -57,9 +67,19 @@ class Graph:
             self.nodes[start_node].append(end_node)
             self.pipes[start_node].append(pipe_id)
         else:
-            raise NotImplementedError
+            msg = f"Graph direction {self.direction} is not valid. Use trace_sewer.DIRECTION.U or DIRECTION.D"
+            raise NotImplementedError(msg)
 
         return self
+
+    def to_file(self, filename: str):
+        with open(filename, "w") as f:
+            json.dump(self, f, cls=ExtendedEncoder, sort_keys=True)
+
+    @classmethod
+    def from_file(cls, filename: str) -> Self:
+        with open(filename) as f:
+            return json.load(f, cls=ExtendedDecoder)
 
 
 class TraceResult:
@@ -89,12 +109,15 @@ class Trace:
     - trace(first_node): Traces a path through the graph starting from the first node.
     """
 
-    def __init__(self, graph, stop_node: Union[Callable, None] = None):
+    def __init__(self, graph, stop_node: Callable | None = None):
         self.graph = graph
         self.stop_node = stop_node or (lambda x: True)
 
     def trace(self, first_node, trace_name=None, summary=False):
-        """Tranverses graph object (depth-first) and returns a TraceResult containing nodes and pipes visited, and end of path nodes."""
+        """
+        THis method tranverses graph object (depth-first) and returns a TraceResult
+        containing nodes and pipes visited, and end of path nodes.
+        """
         nodes = self.graph.nodes
         pipes = self.graph.pipes
 
@@ -150,16 +173,67 @@ class ExtendedEncoder(json.JSONEncoder):
     """
 
     def default(self, obj):
-        name = ("", type(obj).__name__)
+        name = obj.__class__.__name__
 
         try:
-            encoder = getattr(self, f"encode_{name[0]}")
+            encoder = getattr(self, f"encode_{name}")
         except AttributeError:
             super().default(obj)
         else:
             encoded = encoder(obj)
-            encoded["__extended_json_type__"] = "_".join(name)
+            encoded["__extended_json_type__"] = name
             return encoded
 
-    def encode_TraceResult(self, tr: TraceResult) -> dict[str, list]:
+    def encode_defaultdict(self, obj):
+        return {
+            "__extended_json_type__": "defaultdict",
+            "__default_factory__": obj.default_factory.__class__.__name__,
+            "__dict__": dict(obj),
+        }
+
+    def encode_TraceResult(self, tr: TraceResult) -> dict[str, list]:  # noqa N802
         raise NotImplementedError
+
+    def encode_DIRECTION(self, d: DIRECTION) -> dict[str, str]:  # noqa N802
+        return {"__extended_json_type__": "DIRECTION", "_direction": d.value}
+
+    def encode_Graph(self, g: Graph) -> dict[str, dict | list | str]:  # noqa N802
+        return {
+            "__extended_json_type__": "Graph",
+            "_direction": self.default(g.direction),
+            "_nodes": g.nodes,
+            "_pipes": g.pipes,
+        }
+
+
+class ExtendedDecoder(json.JSONDecoder):
+    def __init__(self, **kwargs):
+        kwargs["object_hook"] = self.object_hook
+        super().__init__(**kwargs)
+
+    def object_hook(self, obj):
+        try:
+            name = obj["__extended_json_type__"]
+            decoder = getattr(self, f"decode_{name}")
+        except (KeyError, AttributeError, TypeError) as e:
+            return obj
+        else:
+            return decoder(obj)
+
+    def decode_TraceResult(self, tr: TraceResult) -> dict[str, list]:  # noqa N802
+        raise NotImplementedError
+
+    def decode_tuple(self, obj):
+        return tuple(self.object_hook(element) for element in obj["value"])
+
+    def decode_defaultdict(self, obj):
+        return defaultdict(obj["__default_factory__"], map=self.object_hook(obj["__dict__"]))
+
+    def decode_DIRECTION(self, obj):  # noqa N802
+        return DIRECTION(obj["_direction"])
+
+    def decode_Graph(self, g_dict: dict[str, list | dict]) -> dict[str, list]:  # noqa N802
+        g = Graph(self.object_hook(g_dict["_direction"]))
+        g.nodes = self.object_hook(g_dict["_nodes"])
+        g.pipes = self.object_hook(g_dict["_pipes"])
+        return g

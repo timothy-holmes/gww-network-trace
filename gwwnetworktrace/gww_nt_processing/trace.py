@@ -1,26 +1,30 @@
 from __future__ import annotations
 
+import json
+import os.path
 from typing import Any
 
+from qgis import processing
 from qgis.core import (
+    Qgis,
     QgsFeatureRequest,
     QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
-    QgsProcessingParameterFeatureSink,
-    QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterVectorLayer,
+    QgsVectorLayer,
 )
 from qgis.PyQt.QtCore import QCoreApplication
 
 from gwwnetworktrace.gww_gis_tools.trace_gis.trace_sewer import (
-    DIRECTION,
     Graph,
     Trace,
 )
+from gwwnetworktrace.gww_nt_processing.base_alg import BaseAlgorithm
 
 
-class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
+class UpstreamTraceAlgorithm(BaseAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -40,6 +44,7 @@ class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
 
     INPUT = "INPUT"
     OUTPUT = "OUTPUT"
+    FORCE_REGENERATE = "FORCE_REGENERATE"
 
     def __init__(self) -> None:
         super().__init__()
@@ -50,67 +55,9 @@ class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
         self._group = ""
         self._short_help_string = ""
 
-    def tr(self, string) -> str:
-        """
-        Returns a translatable string with the self.tr() function.
-        """
-        return QCoreApplication.translate("Processing", string)
-
-    def createInstance(self):  # noqa N802
-        return self.__class__()
-
-    def name(self) -> str:
-        """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return self._name
-
-    def displayName(self) -> str:  # noqa N802
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self._display_name)
-
-    def groupId(self) -> str:  # noqa N802
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return self._group_id
-
-    def group(self) -> str:
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        return self.tr(self._group)
-
-    def shortHelpString(self) -> str:  # noqa N802
-        """
-        Returns a localised short helper string for the algorithm. This string
-        should provide a basic description about what the algorithm does and the
-        parameters and outputs associated with it..
-        """
-        return self.tr(self._short_help_string)
-
     def initAlgorithm(self, config=None):  # noqa N802
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-
-        # We add the input vector features source. It can have any kind of
-        # geometry.
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.INPUT,
                 self.tr("Input layer"),
                 [QgsProcessing.TypeVectorAnyGeometry],
@@ -120,61 +67,58 @@ class UpstreamTraceAlgorithm(QgsProcessingAlgorithm):
         # TODO: add regenerate Graph option
         # TODO: add specify custom Graph option
 
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(self.OUTPUT, self.tr("Output layer"))
-        )
-
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
     ) -> dict:
-        """
-        Here is where the processing itself takes place.
-        """
-
         # Initialize feedback if it is None
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
-        feature_source = self.parameterAsSource(parameters, self.INPUT, context)
-        layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
-
-        # TODO: move this to Generate Graph algorithm
-        feedback.pushInfo(f"{feature_source.featureCount()} features loaded")
-        feature_request = (
-            QgsFeatureRequest()
-            .setFlags(QgsFeatureRequest.NoGeometry)
-            .setSubsetOfAttributes(
-                attrNames=["START_NODE", "END_NODE"],
-                fields=layer.fields()
-            )
-        )
-        features = feature_source.getFeatures(feature_request)
-        feature_data = [
-            {
-                "PIPE_ID": f.id(),
-                "START_NODE": f['START_NODE'],
-                "END_NODE": f['END_NODE']
-            } for f in features
-        ]
-
-        source_graph = Graph(DIRECTION.U).from_dicts(feature_data)
+        layer: QgsVectorLayer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
 
         # ensure single feature selected
         if layer.selectedFeatureCount() != 1:
             msg = "Select one feature"
             raise NotImplementedError(msg)
 
-        first_node = next(iter(layer.selectedFeatures())).id()
-        t_result = Trace(source_graph).trace(first_node=first_node)
-        layer.selectByIds(t_result.pipes)
+        source_graph = self._get_layer_graph(layer, context, feedback)
+        first_node = next(iter(layer.selectedFeatures()))["START_NODE"]
+        t_result = Trace(source_graph).trace(first_node=first_node, summary=True)
+        pipes_list = list(t_result.pipes)
 
-        return {self.OUTPUT: ""}
+        # get feature IDs for target PIPE_IDs
+        single_attr_request = (
+            QgsFeatureRequest()
+            .setFlags(QgsFeatureRequest.NoGeometry)
+            .setSubsetOfAttributes(["PIPE_ID"], fields=layer.fields())
+        )
+        ids = (f.id() for f in layer.getFeatures(request=single_attr_request) if f["PIPE_ID"] in pipes_list)
+
+        # select features
+        layer.selectByIds(ids)
+
+        return {self.OUTPUT: parameters[self.INPUT]}
+
+    def _get_layer_graph(
+        self,
+        layer: QgsVectorLayer | QgsProcessingParameterVectorLayer,
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> Graph:
+        graph_path = layer.customProperty(value="gwwnetworktrace_graph", defaultValue=None)
+
+        if not graph_path:
+            graph_path = processing.run(
+                algorithm="gwwnetworktrace:gwwnetworktrace.gww_nt_processing.graph:UpstreamTraceAlgorithm",
+                parameter={
+                    "INPUT": layer,
+                    "FORCE_GENERATE": False,  # add regenerate option SELF.FORCE_REGENERATE
+                },
+                context=context,
+                feedback=feedback,
+            )
+
+        return Graph.from_file(graph_path)

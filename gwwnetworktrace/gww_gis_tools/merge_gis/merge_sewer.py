@@ -1,6 +1,5 @@
-from typing import Union
 from functools import reduce
-import os.path
+from typing import Union
 
 try:
     import geopandas as gpd
@@ -16,13 +15,13 @@ else:
     pass
 
 from gww_gis_tools.merge_gis.sewer_helpers import (
-    Config,
     AssetType,
-    W,
     C,
+    Config,
+    Corrections,
     DataHelpers,
     FieldsHelpers,
-    Corrections,
+    W,
 )
 
 

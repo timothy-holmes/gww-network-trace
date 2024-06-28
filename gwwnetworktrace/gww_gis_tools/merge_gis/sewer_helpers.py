@@ -1,20 +1,22 @@
-import tempfile
-import time
 import os.path
+import tempfile
+from contextlib import ExitStack
+from enum import Enum
+from typing import Union
 
 try:
-    import fiona
-    import geopandas as gpd
-except ImportError:
+    import fiona  # type: ignore[import-untyped]
+    import geopandas as gpd  # type: ignore[import-untyped]
+except ImportError as e:
     GPD_SUPPORT = False
     raise NotImplementedError(
         "geopandas not installed. Install with 'conda install -c conda-forge geopandas'"
-    )
+    ) from e
 else:
     GPD_SUPPORT = True
 
 
-class AssetType:
+class AssetType(Enum):
     """Enum-like class to prevent typos"""
 
     PARCELS = "parcels"
@@ -23,14 +25,14 @@ class AssetType:
     NODES = "nodes"
 
 
-class W:
+class W(Enum):
     SHORT = "W"
     COMPANY = "WW"
     FULL = "Western Region"
     SERVER = "wro-gisapp"
 
 
-class C:
+class C(Enum):
     SHORT = "C"
     COMPANY = "CWW"
     FULL = "Central Region"
@@ -41,36 +43,36 @@ class Config:
     local_files = {
         AssetType.PARCELS: {
             W: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Cadastre\\Parcels.tab"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Cadastre\\Parcels.tab" # noqa: E501
             ],
             C: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Cadastre\\SP_PROPERTY.shp"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Cadastre\\SP_PROPERTY.shp" # noqa: E501
             ],
         },
         AssetType.PIPES: {
             W: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWGPIPE.shp",
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWVPIPE.shp",
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWRPIPE.shp",
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWGPIPE.shp", # noqa: E501
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWVPIPE.shp", # noqa: E501
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWRPIPE.shp", # noqa: E501
             ],
             C: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Pipe.TAB"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Pipe.TAB" # noqa: E501
             ],
         },
         AssetType.BRANCHES: {
             W: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWSERV.shp"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWSERV.shp" # noqa: E501
             ],
             C: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Branch.tab"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Branch.tab" # noqa: E501
             ],
         },
         AssetType.NODES: {
             W: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWNODE.shp"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Western Region\\Sewer\\SP_SEWNODE.shp" # noqa: E501
             ],
             C: [
-                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Node.tab"
+                "C:\\Users\\holmest1\\Greater Western Water\\IP - Spatial - Documents\\Input\\2. GWW GIS Exports\\Existing Assets\\Central Region\\Sewer\\Sewer_Node.tab" # noqa: E501
             ],
         },
     }
@@ -79,7 +81,7 @@ class Config:
         AssetType.PARCELS: {
             W: ["\\\\wro-gisapp\\MunsysExport\\SP_PROPERTY.shp"],
             C: [
-                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Cadastre\\Parcels.tab"
+                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Cadastre\\Parcels.tab" # noqa: E501
             ],
         },
         AssetType.PIPES: {
@@ -89,19 +91,19 @@ class Config:
                 "\\\\wro-gisapp\\MunsysExport\\SP_SEWRPIPE.shp",
             ],
             C: [
-                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Pipe.TAB"
+                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Pipe.TAB" # noqa: E501
             ],
         },
         AssetType.BRANCHES: {
             W: ["\\\\wro-gisapp\\MunsysExport\\SP_SEWSERV.shp"],
             C: [
-                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Branch.tab"
+                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Branch.tab" # noqa: E501
             ],
         },
         AssetType.NODES: {
             W: ["\\\\wro-gisapp\\MunsysExport\\SP_SEWNODE.shp"],
             C: [
-                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Node.tab"
+                "\\\\citywestwater.com.au\\data\\pccommon\\Asset Information\\MUNSYS MapInfo Data\\Production\\Data\\Sewer\\Sewer_Node.tab" # noqa: E501
             ],
         },
     }
@@ -122,33 +124,30 @@ class Config:
     #     },
     # }
 
-    output_template = r"C:\Users\holmest1\Greater Western Water\IP - Spatial - Documents\Input\2. GWW GIS Exports\Existing Assets\Merged Regions\Sewer\GWW_{id}.tab"
+    output_template = r"C:\Users\holmest1\Greater Western Water\IP - Spatial - Documents\Input\2. GWW GIS Exports\Existing Assets\Merged Regions\Sewer\GWW_{id}.tab" # noqa: E501
 
     asset_uids = {
-        "END_NODE",
-        "START_NODE",
-        "PIPE_ID",
-        "GID",  # pipes
-        "NODE_ID",
-        "GID",  # nodes
-        "GID",
-        "SERV_ID" "GID",  # branches
-        "PRCL_GID",
-        "PROP_GID",  # parcels
+        "END_NODE", "START_NODE", "PIPE_ID", "GID",  # pipes
+        "NODE_ID", "GID",  # nodes # noqa: B033
+        "SERV_ID", "GID",  # branches # noqa: B033
+        "PRCL_GID", "PROP_GID",  # parcels
     }
 
     column_map = {
+        # pipes
         "ECOVELEV": "END_COVELEV",
         "SCOVELEV": "START_COVELEV",
         "E_INVELEV": "END_INVELEV",
         "S_INVELEV": "START_INVELEV",
         "GEOMLENGTH": "GEOM_LENGTH",
-        "NODECOVELE": "NODE_COVELEV",
         "PGRADIENT": "PIPE_GRADIENT",
+        # nodes
+        "MH_DESC": "NODE_REF",
+        "NODECOVELE": "NODE_COVELEV",
     }
 
     def __init__(self):
-        self._files = None
+        self._files = {}
 
     @property
     def files(self):
@@ -167,8 +166,13 @@ class Config:
 
         return outpaths
 
-    def get_filepaths(self, asset_type: str, region: str):
-        return self.files.get(asset_type, {}).get(region, [])
+def get_filepaths(self, asset_type: AssetType, region: Union[C, W]):
+    if isinstance(region, C):
+        return self.files.get(asset_type, {W: [], C: []}).get(C, [])
+    elif isinstance(region, W):
+        return self.files.get(asset_type, {W: [], C: []}).get(W, [])
+    else:
+        raise ValueError("Invalid region type") # pyright: ignore[reportCallIssue]
 
 
 class DataHelpers:
@@ -184,24 +188,23 @@ class DataHelpers:
         """Modify read_file to handle invalid geometry"""
         # Create a temporary file for writing the modified shapefile
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file = temp_dir + "\modified_file.noext"
+            temp_file = temp_dir + "\\modified_file.noext"
 
             # Parse original file
-            with fiona.open(src_path) as src:
-                # Start temp file
-                with fiona.open(temp_file, "w", **src.meta) as dst:
-                    # Check each feature for valid LineString geometry
-                    for feature in src:
-                        if feature["geometry"]["type"] == "LineString":
-                            if len(feature["geometry"]["coordinates"]) > 1:
-                                dst.write(feature)
-                        if feature["geometry"]["type"] == "MultiLineString":
-                            feature["geometry"]["coordinates"] = [
-                                f
-                                for f in feature["geometry"]["coordinates"]
-                                if len(f) > 1
-                            ]
-                            dst.write(feature)
+            with ExitStack() as stack:
+                src = stack.enter_context(fiona.open(src_path))
+                dst = stack.enter_context(fiona.open(temp_file, "w", **src.meta))
+                # Check each feature for valid LineString geometry
+                for feature in src:
+                    if feature["geometry"]["type"] == "LineString" and len(feature["geometry"]["coordinates"]) > 1:
+                        dst.write(feature)
+                    if feature["geometry"]["type"] == "MultiLineString":
+                        feature["geometry"]["coordinates"] = [
+                            f
+                            for f in feature["geometry"]["coordinates"]
+                            if len(f) > 1
+                        ]
+                        dst.write(feature)
 
             # Read the modified shapefile
             gdf = gpd.read_file(temp_file)
@@ -223,7 +226,7 @@ class DataHelpers:
                 return gdf
             else:
                 print(f"Unhandled error {args}, {kwargs}: {e.args}")
-
+                return gpd.GeoDataFrame()
 
 class FieldsHelpers:
     @staticmethod

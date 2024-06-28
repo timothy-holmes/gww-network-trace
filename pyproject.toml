@@ -8,7 +8,7 @@ omit = ["gwwnetworktrace/qgis_plugin_tools/*"]
 target-version = "py38"
 extend = "ruff_defaults.toml"
 
-unfixable = [
+lint.unfixable = [
     "F401", # unused imports
     "F841", # unused variables
 ]

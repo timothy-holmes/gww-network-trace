@@ -112,18 +112,18 @@ class Plugin:
     def initGui(self) -> None:  # noqa N802
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
         self.add_action(
-            icon_path="",
+            icon_path="./resources/upstream.png",
             text="Run upstream trace on selected feature",
             callback=self.run_upstream,
             parent=iface.mainWindow(),
-            add_to_toolbar=False,
+            add_to_toolbar=True,
         )
         self.add_action(
-            icon_path="",
+            icon_path="./resources/downstream.png",
             text="Generate upstream graph",
             callback=self.run_downstream,
             parent=iface.mainWindow(),
-            add_to_toolbar=False,
+            add_to_toolbar=True,
         )
         self.initProcessing()
 
