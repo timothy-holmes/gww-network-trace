@@ -1,0 +1,23 @@
+{
+    "pipes": [
+        {"pipe_id": 0, "start_node": 0, "end_node": 1, "geometry": {"type": "LineString", "coordinates": [[0, 0], [0, 1]]}},
+        {"pipe_id": 0, "start_node": 1, "end_node": 2},
+        {"pipe_id": 0, "start_node": 2, "end_node": 3},
+        {"pipe_id": 0, "start_node": 3, "end_node": 4},
+        {"pipe_id": 0, "start_node": 4, "end_node": 5}
+    ],
+    "nodes": [
+        {"node_id": 0, "geometry": {"type": "Point", "coordinates": [[0, 0]]}},
+        {"node_id": 1, "geometry": {"type": "Point", "coordinates": [[0, 1]]}},
+        {"node_id": 2, "geometry": {"type": "Point", "coordinates": [[0, 2]]}},
+        {"node_id": 3, "geometry": {"type": "Point", "coordinates": [[0, 3]]}},
+        {"node_id": 4, "geometry": {"type": "Point", "coordinates": [[0, 4]]}},
+        {"node_id": 5, "geometry": {"type": "Point", "coordinates": [[0, 5]]}}
+    ],
+    "branches": [
+        
+    ],
+    "parcels": [
+        
+    ]
+}
