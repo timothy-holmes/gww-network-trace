@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import inspect
 from typing import Any
 
 from qgis.core import (
@@ -14,7 +13,6 @@ from qgis.core import (
 
 from gwwnetworktrace.gww_gis_tools.trace_gis.trace_sewer import (
     DIRECTION,
-    Graph,
 )
 from gwwnetworktrace.gww_nt_processing.base_alg import BaseAlgorithm
 from gwwnetworktrace.gww_nt_processing.graph_helpers import GraphHelpers
@@ -47,7 +45,7 @@ class GraphGenerateAlgorithm(BaseAlgorithm):
             QgsProcessingParameterEnum(
                 name=self.TRACE_DIRECTION,
                 description=self.tr('Trace Direction'),
-                options=[d.value for d in DIRECTION],
+                options=[d.value.upper() for d in DIRECTION],
                 allowMultiple=False,
                 defaultValue=DIRECTION.U.value,
                 optional=False,
@@ -57,8 +55,8 @@ class GraphGenerateAlgorithm(BaseAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 name=self.FORCE_GENERATE,
-                description=self.tr("Force generate Graph"),
-                defaultValue=False,
+                description=self.tr("Force generation of network graph"),
+                defaultValue=True,
                 optional=False,
             )
         )
@@ -74,7 +72,7 @@ class GraphGenerateAlgorithm(BaseAlgorithm):
 
         layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         force_regenerate = self.parameterAsBoolean(parameters, self.FORCE_GENERATE, context)
-        direction = self.parameterAsString(parameters, self.TRACE_DIRECTION, context)
+        direction = self.parameterAsString(parameters, self.TRACE_DIRECTION, context).lower()
         direction = DIRECTION(direction)
 
         feedback.pushInfo(f'{str(layer)[:500]=}, {force_regenerate=}, {direction=}')

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os.path
 
 from qgis.core import (
-    QgsApplication,
     QgsFeatureRequest,
     QgsProcessingFeedback,
     QgsVectorLayer,

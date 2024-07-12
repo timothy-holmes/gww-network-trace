@@ -35,11 +35,15 @@ class TraceAlgorithm(BaseAlgorithm):
     class.
     """
 
+    INPUT_PIPES = 'INPUT_PIPES'
+    INPUT_BRANCHES = 'INPUT_BRANCHES'
+    INPUT_PARCELS = 'INPUT_PARCELS'
+
     def __init__(self) -> None:
         super().__init__()
 
         self._name = "trace"
-        self._display_name = "Trace network (select pipes)"
+        self._display_name = "Trace network (select pipes and parcels)"
         self._group_id = ""
         self._group = ""
         self._short_help_string = ""
@@ -47,9 +51,23 @@ class TraceAlgorithm(BaseAlgorithm):
     def initAlgorithm(self, configuration=None):  # noqa N802
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                name=self.INPUT,
+                name=self.INPUT_PIPES,
                 description=self.tr("Input layer"),
                 types=[QgsProcessing.TypeVectorLine],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                name=self.INPUT_BRANCHES,
+                description=self.tr("Input layer"),
+                types=[QgsProcessing.TypeVectorLine],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                name=self.INPUT_PARCELS,
+                description=self.tr("Input layer"),
+                types=[QgsProcessing.TypeVectorPolygon],
             )
         )
         self.addParameter(
@@ -84,12 +102,14 @@ class TraceAlgorithm(BaseAlgorithm):
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
+        pipe_layer = self.parameterAsVectorLayer(parameters, self.INPUT_PIPES, context)
+        branch_layer = self.parameterAsVectorLayer(parameters, self.INPUT_BRANCHES, context)
+        parcel_layer = self.parameterAsVectorLayer(parameters, self.INPUT_PARCELS, context)
         force_regenerate = self.parameterAsBoolean(parameters, self.FORCE_GENERATE, context)
         direction = self.parameterAsString(parameters, self.TRACE_DIRECTION, context).lower()
         direction = DIRECTION(direction)
 
-        feedback.pushInfo(f"{layer=}, {direction=}, {force_regenerate=}")
+        feedback.pushInfo(f"{pipe_layer=}, {branch_layer=}, {parcel_layer=}, {direction=}, {force_regenerate=}")
 
         # ensure single feature selected
         if layer.selectedFeatureCount() != 1:
