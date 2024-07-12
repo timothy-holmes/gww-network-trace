@@ -1,30 +1,28 @@
 from __future__ import annotations
 
-import json
-import os.path
 from typing import Any
 
-from qgis import processing
 from qgis.core import (
-    Qgis,
     QgsFeatureRequest,
     QgsProcessing,
-    QgsProcessingAlgorithm,
     QgsProcessingContext,
     QgsProcessingFeedback,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterEnum,
     QgsProcessingParameterVectorLayer,
     QgsVectorLayer,
 )
-from qgis.PyQt.QtCore import QCoreApplication
 
 from gwwnetworktrace.gww_gis_tools.trace_gis.trace_sewer import (
+    DIRECTION,
     Graph,
     Trace,
 )
 from gwwnetworktrace.gww_nt_processing.base_alg import BaseAlgorithm
+from gwwnetworktrace.gww_nt_processing.graph_helpers import GraphHelpers
 
 
-class UpstreamTraceAlgorithm(BaseAlgorithm):
+class TraceAlgorithm(BaseAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -49,53 +47,78 @@ class UpstreamTraceAlgorithm(BaseAlgorithm):
     def __init__(self) -> None:
         super().__init__()
 
-        self._name = "upstream_trace"
-        self._display_name = "Run upstream trace"
+        self._name = "trace"
+        self._display_name = "Run network trace"
         self._group_id = ""
         self._group = ""
         self._short_help_string = ""
 
-    def initAlgorithm(self, config=None):  # noqa N802
+    def initAlgorithm(self, configuration=None):  # noqa N802
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.INPUT,
-                self.tr("Input layer"),
-                [QgsProcessing.TypeVectorAnyGeometry],
+                name=self.INPUT,
+                description=self.tr("Input layer"),
+                types=[QgsProcessing.TypeVectorLine],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                name=self.TRACE_DIRECTION,
+                description=self.tr('Trace Direction'),
+                options=[d.value for d in DIRECTION],
+                allowMultiple=False,
+                defaultValue=DIRECTION.U.value,
+                optional=False,
+                usesStaticStrings=True
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                name=self.FORCE_GENERATE,
+                description=self.tr("Force generate network raph"),
+                defaultValue=False,
+                optional=False,
             )
         )
 
-        # TODO: add regenerate Graph option
         # TODO: add specify custom Graph option
 
     def processAlgorithm(  # noqa N802
         self,
         parameters: dict[str, Any],
         context: QgsProcessingContext,
-        feedback: QgsProcessingFeedback,
+        feedback: QgsProcessingFeedback | None,
     ) -> dict:
         # Initialize feedback if it is None
         if feedback is None:
             feedback = QgsProcessingFeedback()
 
-        layer: QgsVectorLayer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
+        layer = self.parameterAsVectorLayer(parameters, self.INPUT, context)
+        force_regenerate = self.parameterAsBoolean(parameters, self.FORCE_GENERATE, context)
+        direction = DIRECTION(self.parameterAsString(parameters, self.TRACE_DIRECTION, context))
+
+        feedback.pushInfo(f"{layer=}, {direction=}, {force_regenerate=}")
 
         # ensure single feature selected
         if layer.selectedFeatureCount() != 1:
             msg = "Select one feature"
-            raise NotImplementedError(msg)
+            feedback.reportError(
+                error=msg,
+                fatalError=True,
+            )
 
-        source_graph = self._get_layer_graph(layer, context, feedback)
-        first_node = next(iter(layer.selectedFeatures()))["START_NODE"]
-        t_result = Trace(source_graph).trace(first_node=first_node, summary=True)
-        pipes_list = list(t_result.pipes)
-
-        # get feature IDs for target PIPE_IDs
-        single_attr_request = (
-            QgsFeatureRequest()
-            .setFlags(QgsFeatureRequest.NoGeometry)
-            .setSubsetOfAttributes(["PIPE_ID"], fields=layer.fields())
+        graph = self._get_layer_graph(
+            feedback,
+            layer,
+            direction,
+            force_regenerate,
         )
-        ids = (f.id() for f in layer.getFeatures(request=single_attr_request) if f["PIPE_ID"] in pipes_list)
+        first_node = next(iter(layer.selectedFeatures()))["START_NODE"]
+        feedback.pushInfo(f'{first_node=}')
+
+        trace_result = Trace(graph).trace(first_node=first_node, summary=True)
+        feedback.pushInfo(f'Found {len(trace_result.pipes)} pipes upstream')
+        ids = [graph.qgis_fids[p] for p in trace_result.pipes]
 
         # select features
         layer.selectByIds(ids)
@@ -104,21 +127,23 @@ class UpstreamTraceAlgorithm(BaseAlgorithm):
 
     def _get_layer_graph(
         self,
-        layer: QgsVectorLayer | QgsProcessingParameterVectorLayer,
-        context: QgsProcessingContext,
         feedback: QgsProcessingFeedback,
+        layer: QgsVectorLayer | QgsProcessingParameterVectorLayer,
+        direction: DIRECTION,
+        force_regenerate: bool,
     ) -> Graph:
-        graph_path = layer.customProperty(value="gwwnetworktrace_graph", defaultValue=None)
+            """Load graph if found, or generates new graph"""
+            graph_path = GraphHelpers.find_graph_file(layer, direction)
 
-        if not graph_path:
-            graph_path = processing.run(
-                algorithm="gwwnetworktrace:gwwnetworktrace.gww_nt_processing.graph:UpstreamTraceAlgorithm",
-                parameter={
-                    "INPUT": layer,
-                    "FORCE_GENERATE": False,  # add regenerate option SELF.FORCE_REGENERATE
-                },
-                context=context,
-                feedback=feedback,
-            )
+            if graph_path and not force_regenerate:
+                feedback.pushInfo(f'Found graph: {graph_path}')
+                graph = GraphHelpers.load_graph_from_file(graph_path)
+            else:
+                feedback.pushInfo(f'{graph_path=}, {force_regenerate=}')
+                graph = GraphHelpers.generate_new_graph(layer, direction, feedback)
+                graph_path = GraphHelpers.save_graph(feedback=feedback, layer=layer, graph=graph)
+                feedback.pushInfo(f'New {graph_path=}, {force_regenerate=}')
 
-        return Graph.from_file(graph_path)
+            GraphHelpers.add_graph_to_layer(feedback, layer, graph, graph_path)
+
+            return graph

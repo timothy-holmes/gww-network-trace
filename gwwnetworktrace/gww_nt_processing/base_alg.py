@@ -8,7 +8,8 @@ from qgis.core import (
     QgsProcessingContext,
     QgsProcessingFeedback,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QIcon
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 
 from gwwnetworktrace.qgis_plugin_tools.tools.resources import resources_path
 
@@ -34,15 +35,16 @@ class BaseAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
     OUTPUT = "OUTPUT"
     FORCE_GENERATE = "FORCE_GENERATE"
+    TRACE_DIRECTION = 'TRACE_DIRECTION'
 
     def __init__(self) -> None:
         super().__init__()
 
-        self._name = "upstream_trace"
-        self._display_name = "Generate upstream trace"
+        self._name = "<_name placeholder>"
+        self._display_name = "<_display_name placeholder>"
         self._group_id = ""
         self._group = ""
-        self._short_help_string = ""
+        self._short_help_string = "<_short_help_string placeholder>"
 
     def tr(self, string) -> str:
         """
@@ -102,13 +104,13 @@ class BaseAlgorithm(QgsProcessingAlgorithm):
         """
         return self.tr(self._short_help_string)
 
-    # def initAlgorithm(self, config=None):  # noqa N802
-    #     pass
+    def initAlgorithm(self, configuration=None):  # noqa N802
+        raise NotImplementedError
 
-    # def processAlgorithm(  # noqa N802
-    #     self,
-    #     parameters: dict[str, Any],
-    #     context: QgsProcessingContext,
-    #     feedback: QgsProcessingFeedback,
-    # ) -> dict:
-    #     return {}
+    def processAlgorithm(  # noqa N802
+        self,
+        parameters: dict[str, Any],
+        context: QgsProcessingContext,
+        feedback: QgsProcessingFeedback,
+    ) -> dict:
+        raise NotImplementedError

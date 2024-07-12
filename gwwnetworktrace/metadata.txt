@@ -1,13 +1,13 @@
 [general]
 name=GWW Network Trace
-description=Plugin for tracing GWW network
-about=
-version=
+description=Plugin for tracing GWW sewer network
+about=The Network Trace plugin allows users to efficiently trace and select upstream or downstream pipes in a sewer network by traversing the network graph defined by the START_NODE and END_NODE fields in the Pipe layer.
+version=1.0.0
 qgisMinimumVersion=3.22
-author=
-email=
-changelog=
-tags=
+author=Timothy Holmes
+email=tim.a.holmes@gmail.com
+changelog=CHANGELOG.md
+tags=network, trace, sewer, pipes, GIS, QGIS
 repository=https://github.com/timothy-holmes/gww-network-trace
 tracker=https://github.com/timothy-holmes/gww-network-trace/issues
 homepage=https://github.com/timothy-holmes/gww-network-trace
