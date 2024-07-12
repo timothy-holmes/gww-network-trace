@@ -2,6 +2,7 @@ from qgis.core import QgsProcessingProvider
 
 from gwwnetworktrace.gww_nt_processing.graph import GraphGenerateAlgorithm
 from gwwnetworktrace.gww_nt_processing.trace import TraceAlgorithm
+from gwwnetworktrace.gww_nt_processing.trace_parcels import TraceParcelsAlgorithm
 
 
 class Provider(QgsProcessingProvider):
@@ -41,8 +42,11 @@ class Provider(QgsProcessingProvider):
         """
         Adds individual processing algorithms to the provider.
         """
-        upstream_trace = TraceAlgorithm()
-        self.addAlgorithm(upstream_trace)
+        upstream_trace_pipes = TraceAlgorithm()
+        self.addAlgorithm(upstream_trace_pipes)
+
+        upstream_trace_parcels = TraceParcelsAlgorithm()
+        self.addAlgorithm(upstream_trace_parcels)
 
         graph_generate = GraphGenerateAlgorithm()
         self.addAlgorithm(graph_generate)

@@ -35,7 +35,7 @@ class BaseAlgorithm(QgsProcessingAlgorithm):
     INPUT = "INPUT"
     OUTPUT = "OUTPUT"
     FORCE_GENERATE = "FORCE_GENERATE"
-    TRACE_DIRECTION = 'TRACE_DIRECTION'
+    TRACE_DIRECTION = "TRACE_DIRECTION"
 
     def __init__(self) -> None:
         super().__init__()

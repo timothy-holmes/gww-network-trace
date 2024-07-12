@@ -9,7 +9,7 @@ import json
 from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Union
 
 with contextlib.suppress(ImportError):
     from typing import Any, Self
@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 class DIRECTION(Enum):
     """Specify direction on initialisation."""
 
-    U = 'upstream'
-    D = 'downstream'
+    U = "upstream"
+    D = "downstream"
 
 
 class Graph:
@@ -56,13 +56,14 @@ class Graph:
         """Specify direction on initialisation."""
         self.direction = direction
 
-        self.nodes: defaultdict[str | int, list] = defaultdict(list)
-        self.pipes: defaultdict[str | int, list] = defaultdict(list)
-        self.qgis_fids: dict = {}
+        self.nodes: defaultdict[Union[str, int], list] = defaultdict(list)
+        self.pipes: defaultdict[Union[str, int], list] = defaultdict(list)
+        self.qgis_fids: dict[Union[str, int], int] = {}  # pipes only
+        self.qgis_parcel_fids: defaultdict[Union[str, int], list] = defaultdict(list)
 
     def __repr__(self) -> str:
         """Return a string representation of the graph."""
-        return f'Graph({self.direction}, {len(self.nodes)=})'
+        return f"Graph({self.direction}, {len(self.nodes)=})"
 
     def from_gdf(self, links: gpd.GeoDataFrame) -> Self:
         """Use a (Geo)DataFrame to add each row as an edge. Returns graph object."""
@@ -72,7 +73,7 @@ class Graph:
 
     def from_dicts(self, links: list[dict]) -> Self:
         """Use a list of dictionaries to add rows as an edges. Returns graph object."""
-        SUPPORTED_KEYS = ['START_NODE', 'END_NODE', 'PIPE_ID', 'QGIS_FID']
+        SUPPORTED_KEYS = ["START_NODE", "END_NODE", "PIPE_ID", "QGIS_FID"]
         fields = next(iter(links)).keys()
         keys = [f for f in SUPPORTED_KEYS if f in fields]
 
@@ -82,10 +83,10 @@ class Graph:
 
     def add_edge(
         self,
-        start_node: str | int,
-        end_node: str | int,
-        pipe_id: str | int,
-        qgis_fid: int | None = None
+        start_node: Union[str, int],
+        end_node: Union[str, int],
+        pipe_id: Union[str, int],
+        qgis_fid: Union[int, None] = None,
     ) -> Self:
         """Add field values for a single feature as an edge. Returns graph object."""
         if self.direction == DIRECTION.U:
@@ -100,9 +101,19 @@ class Graph:
 
         return self
 
+    def add_qgis_parcel_ids(
+        self,
+        branches_info: list[dict[str, Union[str, int]]],
+    ) -> Self:
+        """Adds info from branches to enable selecting parcels from pipe ids."""
+        for branch in branches_info:
+            self.qgis_parcel_fids[branch["PIPE_ID"]].append(branch["PARCEL_FID"])
+
+        return self
+
     def to_file(self, filename: str) -> None:
         """Write graph object to file."""
-        with Path(filename).open('w') as f:
+        with Path(filename).open("w") as f:
             json.dump(self, f, cls=ExtendedEncoder, sort_keys=True)
 
     @classmethod
@@ -130,9 +141,9 @@ class TraceResult:
 
     def __repr__(self) -> str:
         """Return string representation of TraceResult."""
-        return 'TraceResult({}, {})'.format(
-            self.trace_summary['direction'],
-            self.trace_summary['start_node'],
+        return "TraceResult({}, {})".format(
+            self.trace_summary["direction"],
+            self.trace_summary["start_node"],
         )
 
 
@@ -151,16 +162,16 @@ class Trace:
     - trace(first_node): Traces a path through the graph starting from the first node.
     """
 
-    def __init__(self, graph: Graph, stop_node: Callable | None = None) -> None:
+    def __init__(self, graph: Graph, stop_node: Union[Callable, None] = None) -> None:
         """Initialise Trace."""
         self.graph = graph
-        self.stop_node = stop_node or (lambda x: True) # noqa: ARG005
+        self.stop_node = stop_node or (lambda x: True)  # noqa: ARG005
 
     def trace(
         self,
-        first_node: str | int,
-        trace_name: str = '',
-        summary: bool = False  # noqa: FBT001, FBT002
+        first_node: Union[str, int],
+        trace_name: str = "",
+        summary: bool = False,  # noqa: FBT001, FBT002
     ) -> TraceResult:
         """
         Main trace method.
@@ -197,11 +208,11 @@ class Trace:
 
         if summary:
             trace_summary = {
-                'trace_name': trace_name,
-                'g_size': len(self.graph.nodes),
-                'direction': self.graph.direction,
-                'start_node': first_node,
-                'stop_node_predicate': str(inspect.getsource(self.stop_node)).strip(),
+                "trace_name": trace_name,
+                "g_size": len(self.graph.nodes),
+                "direction": self.graph.direction,
+                "start_node": first_node,
+                "stop_node_predicate": str(inspect.getsource(self.stop_node)).strip(),
             }
         else:
             trace_summary = {}
@@ -226,7 +237,7 @@ class ExtendedEncoder(json.JSONEncoder):
 
     """
 
-    def default(self, o: Any) -> str: # noqa: ANN401
+    def default(self, o: Any) -> str:  # noqa: ANN401
         # TODO @timothy-holmes: create JSON type list # noqa: FIX002, TD003
         """
         Overrides default behavior for serializing objects.
@@ -236,35 +247,35 @@ class ExtendedEncoder(json.JSONEncoder):
         name = o.__class__.__name__
 
         try:
-            encoder = getattr(self, f'_encode_{name}')
+            encoder = getattr(self, f"_encode_{name}")
         except AttributeError:
             return o
         else:
             encoded = encoder(o)
-            encoded['__extended_json_type__'] = name
+            encoded["__extended_json_type__"] = name
             return encoded
 
-    def _encode_defaultdict(self, o: defaultdict) -> dict[str, str | dict]:
+    def _encode_defaultdict(self, o: defaultdict) -> dict[str, Union[str, dict]]:
         return {
-            '__default_factory__': self.default(o.default_factory),
-            '__dict__': dict(o),
+            "__default_factory__": self.default(o.default_factory),
+            "__dict__": dict(o),
         }
 
     def _encode_type(self, o: type) -> dict[str, str]:
-        return {'_type': o.__name__}
+        return {"_type": o.__name__}
 
     def _encode_TraceResult(self, tr: TraceResult) -> dict[str, list]:  # noqa: N802
         raise NotImplementedError
 
     def _encode_DIRECTION(self, d: DIRECTION) -> dict[str, str]:  # noqa: N802
-        return {'_direction': d.value}
+        return {"_direction": d.value}
 
-    def _encode_Graph(self, g: Graph) -> dict[str, dict | list | str]:  # noqa: N802
+    def _encode_Graph(self, g: Graph) -> dict[str, Union[dict, list, str]]:  # noqa: N802
         return {
-            '_direction': self.default(g.direction),
-            '_nodes': self.default(g.nodes),
-            '_pipes': self.default(g.pipes),
-            '_qgis_fids': self.default(g.qgis_fids)
+            "_direction": self.default(g.direction),
+            "_nodes": self.default(g.nodes),
+            "_pipes": self.default(g.pipes),
+            "_qgis_fids": self.default(g.qgis_fids),
         }
 
 
@@ -278,23 +289,23 @@ class ExtendedDecoder(json.JSONDecoder):
         and uses dynamic method lookup to decode the object.
     """
 
-    def __init__(self, **kwargs) -> None: # noqa: ANN003
+    def __init__(self, **kwargs) -> None:  # noqa: ANN003
         """Initialize the class."""
-        kwargs['object_hook'] = self.object_hook
+        kwargs["object_hook"] = self.object_hook
         super().__init__(**kwargs)
 
-    def object_hook( # pyright: ignore[reportIncompatibleMethodOverride]
+    def object_hook(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
         obj: dict,
-    ) -> Any: # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
         """
         Replace method for extended JSON deserialization.
 
         Uses dynamic method lookup to decode the object.
         """
         try:
-            name = obj['__extended_json_type__']
-            decoder = getattr(self, f'_decode_{name}')
+            name = obj["__extended_json_type__"]
+            decoder = getattr(self, f"_decode_{name}")
         except (KeyError, AttributeError, TypeError):
             return obj
         else:
@@ -304,31 +315,30 @@ class ExtendedDecoder(json.JSONDecoder):
         raise NotImplementedError
 
     def _decode_defaultdict(self, obj: dict) -> defaultdict:
-        return defaultdict(
-            self.object_hook(obj['__default_factory__']),
-            self.object_hook(obj['__dict__'])
-        )
+        return defaultdict(self.object_hook(obj["__default_factory__"]), self.object_hook(obj["__dict__"]))
 
     def _decode_type(self, obj: dict) -> type:  # noqa: N802
         possible_types = {
-            getattr(builtins,b).__name__: getattr(builtins,b)
+            type(getattr(builtins, b)).__name__: getattr(builtins, b)
             for b in dir(builtins)
-            if type(getattr(builtins,b)) is type
+            if type(getattr(builtins, b)) is type
         }
         possible_types |= {type(g).__name__: g for g in globals() if type(g) is type}
-        return possible_types[obj['_type']]
+        return possible_types[obj["_type"]]
 
     def _decode_DIRECTION(self, obj: dict) -> DIRECTION:  # noqa: N802
-        return DIRECTION(obj['_direction'])
+        return DIRECTION(obj["_direction"])
 
-    def _decode_Graph(self, g_dict: dict[str, list | dict]) -> Graph:  # noqa: N802
-        g = Graph(self.object_hook(g_dict['_direction'])) # pyright: ignore[reportArgumentType]
-        g.nodes = self.object_hook(g_dict['_nodes']) # pyright: ignore[reportArgumentType]
-        g.pipes = self.object_hook(g_dict['_pipes']) # pyright: ignore[reportArgumentType]
-        g.qgis_fids = self.object_hook(g_dict['_qgis_fids']) # pyright: ignore[reportArgumentType]
+    def _decode_Graph(self, g_dict: dict[str, Union[dict, list]]) -> Graph:  # noqa: N802
+        g = Graph(self.object_hook(g_dict["_direction"]))  # pyright: ignore[reportArgumentType]
+        g.nodes = self.object_hook(g_dict["_nodes"])  # pyright: ignore[reportArgumentType]
+        g.pipes = self.object_hook(g_dict["_pipes"])  # pyright: ignore[reportArgumentType]
+        g.qgis_fids = self.object_hook(g_dict["_qgis_fids"])  # pyright: ignore[reportArgumentType]
         return g
 
 
-if __name__ == '__main__':
-    with open(r"C:/Users/holmest1/Greater Western Water/IP - Planning(Local) - Sewer/4. General/System Schematic/v2/data\\622d700622e88e2f.json") as jf:
+if __name__ == "__main__":
+    with open(
+        r"C:/Users/holmest1/Greater Western Water/IP - Planning(Local) - Sewer/4. General/System Schematic/v2/data\\622d700622e88e2f.json"
+    ) as jf:
         j = json.load(jf, cls=ExtendedDecoder)
