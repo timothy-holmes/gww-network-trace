@@ -37,7 +37,7 @@ class GraphGenerateAlgorithm(BaseAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.INPUT,
-                description=self.tr("Input layer"),
+                description=self.tr("Pipe Layer"),
                 types=[QgsProcessing.TypeVectorLine],
             )
         )

@@ -50,7 +50,7 @@ class TraceParcelsAlgorithm(BaseAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.INPUT_PIPES,
-                description=self.tr("Input layer"),
+                description=self.tr("Pipe Layer"),
                 types=[QgsProcessing.TypeVectorLine],
                 optional=False,
             )
@@ -58,7 +58,7 @@ class TraceParcelsAlgorithm(BaseAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.INPUT_BRANCHES,
-                description=self.tr("Input layer"),
+                description=self.tr("Branch Layer"),
                 types=[QgsProcessing.TypeVectorLine],
                 optional=False,
             )
@@ -66,7 +66,7 @@ class TraceParcelsAlgorithm(BaseAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 name=self.INPUT_PARCELS,
-                description=self.tr("Input layer"),
+                description=self.tr("Parcel Layer"),
                 types=[QgsProcessing.TypeVectorPolygon],
                 optional=False,
             )
